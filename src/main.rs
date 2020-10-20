@@ -9,13 +9,13 @@ use rocket_contrib::serve::{Options, StaticFiles};
 use rocket_contrib::templates::Template;
 
 // local
-use start_next::{NewPage, NotFoundError};
+use start_next::{NewPage, NoData, NotFoundError};
 
 #[derive(Serialize)]
 struct TemplateContext<T: Serialize> {
     title: &'static str,
     parent: &'static str,
-    data: T,
+    data: std::option::Option<T>,
 }
 
 #[catch(404)]
@@ -25,21 +25,33 @@ fn not_found(req: &Request) -> Template {
         &TemplateContext {
             title: "Not Found",
             parent: "layout",
-            data: &NotFoundError {
+            data: Some(&NotFoundError {
                 route: req.uri().to_string(),
-            },
+            }),
         },
     )
 }
 
-#[post("/new/page", format = "application/json", data = "<items>")]
-fn add_new(items: Option<Form<NewPage>>) -> String {
+#[get("/")]
+fn get_index() -> Template {
+    Template::render(
+        "index",
+        &TemplateContext {
+            title: "start :: home",
+            parent: "layout",
+            data: Some(NoData()),
+        },
+    )
+}
+
+#[post("/new/page", format = "application/json", data = "<_items>")]
+fn add_new_page(_items: Option<Form<NewPage>>) -> String {
     String::new()
 }
 
 fn main() {
     rocket::ignite()
-        .mount("/", routes![add_new])
+        .mount("/", routes![add_new_page, get_index])
         .mount(
             "/",
             StaticFiles::new(
