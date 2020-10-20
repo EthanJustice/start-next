@@ -37,7 +37,31 @@ fn get_index() -> Template {
     Template::render(
         "index",
         &TemplateContext {
-            title: "start :: home",
+            title: "home :: start",
+            parent: "layout",
+            data: Some(NoData()),
+        },
+    )
+}
+
+#[get("/pages")]
+fn get_pages() -> Template {
+    Template::render(
+        "pages/index",
+        &TemplateContext {
+            title: "pages :: start",
+            parent: "layout",
+            data: Some(NoData()),
+        },
+    )
+}
+
+#[get("/paste")]
+fn get_paste() -> Template {
+    Template::render(
+        "paste/index",
+        &TemplateContext {
+            title: "paste :: start",
             parent: "layout",
             data: Some(NoData()),
         },
@@ -51,7 +75,7 @@ fn add_new_page(_items: Option<Form<NewPage>>) -> String {
 
 fn main() {
     rocket::ignite()
-        .mount("/", routes![add_new_page, get_index])
+        .mount("/", routes![add_new_page, get_index, get_pages, get_paste])
         .mount(
             "/",
             StaticFiles::new(
