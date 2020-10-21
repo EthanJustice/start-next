@@ -1,6 +1,16 @@
 {{#*inline "page"}}
 <h1>index :: pages</h1>
 {{> layouts/nav }}
+<form action="/new/page" method="POST">
+    <textarea placeholder="MarkDown..." name="data"></textarea>
+    <input type="text" placeholder="URL" name="new_url" />
+    <input type="submit" value="Create page" />
+</form>
+<script>
+    document.querySelector('input[type="text"]').addEventListener('input', (e) => {
+        document.querySelector('input[type="text"]').value = document.querySelector('input[type="text"]').value.replace(/\s/, '-').toLowerCase();
+    })
+</script>
 {{ index }}
 {{/inline}}
 {{~> (parent)~}}

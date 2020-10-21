@@ -12,6 +12,8 @@ publish = false
 [dependencies]
 rocket = "~0.4.5"
 
+pulldown-cmark = "~0.8.0"
+
 serde = { version = "~1.0.117", features = ["derive"] }
 
 [dependencies.rocket_contrib]
