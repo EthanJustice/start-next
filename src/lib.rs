@@ -23,3 +23,8 @@ pub struct NewPage {
     pub data: String,
     pub new_url: String,
 }
+
+#[derive(Serialize, Debug, Clone)]
+pub struct Page {
+    pub content: String,
+}

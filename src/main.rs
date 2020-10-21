@@ -1,6 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 // std
-use std::fs::{create_dir_all, write, File};
+use std::fs::{create_dir_all, read_to_string, write};
 
 // external
 use serde::Serialize;
@@ -12,7 +12,7 @@ use rocket_contrib::templates::Template;
 use pulldown_cmark::{html, Options as PulldownOptions, Parser};
 
 // local
-use start_next::{NewPage, NoData, NotFoundError};
+use start_next::{NewPage, NoData, NotFoundError, Page};
 
 #[derive(Serialize)]
 struct TemplateContext<T: Serialize, S: Into<String>> {
@@ -60,15 +60,22 @@ fn get_pages() -> Template {
 }
 
 #[get("/page/<page>")]
-fn get_page_item(page: String) -> Template {
-    Template::render(
-        "pages/index",
-        &TemplateContext {
-            title: format!("pages :: {}", page),
-            parent: "layout",
-            data: Some(NoData()),
-        },
-    )
+fn get_page_item(page: String) -> Result<Template, &'static str> {
+    match read_to_string(format!(
+        "{}/content/pages/{}.html",
+        env!("CARGO_MANIFEST_DIR"),
+        page
+    )) {
+        Ok(v) => Ok(Template::render(
+            "pages/page",
+            &TemplateContext {
+                title: format!("pages :: {}", page),
+                parent: "layout",
+                data: Some(&Page { content: v }),
+            },
+        )),
+        Err(_) => Err("Failed to get page."),
+    }
 }
 
 #[get("/paste")]
@@ -124,12 +131,15 @@ fn add_new_page(items: Option<Form<NewPage>>) -> Result<Redirect, &'static str> 
 }
 
 fn main() {
-    //    if std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/content")).is_dir() == false {
-    //        std::fs::create_dir_all(concat!(env!("CARGO_MANIFEST_DIR"), "/content/pages"))
-    //            .expect("Failed to generate setup directory structure, aborting...");
-    //    }
+    if std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/content")).is_dir() == false {
+        std::fs::create_dir_all(concat!(env!("CARGO_MANIFEST_DIR"), "/content/pages"))
+            .expect("Failed to generate setup directory structure, aborting...");
+    }
     rocket::ignite()
-        .mount("/", routes![add_new_page, get_index, get_pages, get_paste])
+        .mount(
+            "/",
+            routes![add_new_page, get_index, get_pages, get_page_item, get_paste],
+        )
         .mount(
             "/",
             StaticFiles::new(
