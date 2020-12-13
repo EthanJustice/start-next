@@ -1,6 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 // std
 use std::fs::{create_dir_all, read_to_string, write};
+use std::path::Path;
 
 // external
 use serde::Serialize;
@@ -12,7 +13,7 @@ use rocket_contrib::templates::Template;
 use pulldown_cmark::{html, Options as PulldownOptions, Parser};
 
 // local
-use start_next::{NewPage, NoData, NotFoundError, Page};
+use start_next::{NewPage, NoData, NotFoundError, Page, update_index, PageIndex,get_page_index};
 
 #[derive(Serialize)]
 struct TemplateContext<T: Serialize, S: Into<String>> {
@@ -59,10 +60,23 @@ fn get_pages() -> Template {
     )
 }
 
+#[get("/pages/index")]
+fn get_page_index_route() -> Template {
+    let idx: Vec<String> = get_page_index().files;
+    Template::render(
+        "pages/all",
+        &TemplateContext {
+            title: "pages :: index",
+            parent: "layout",
+            data: Some(&PageIndex { files: idx })
+        }
+    )
+}
+
 #[get("/page/<page>")]
 fn get_page_item(page: String) -> Result<Template, &'static str> {
     match read_to_string(format!(
-        "{}/content/pages/{}.html",
+        "{}/content/pages/{}/index.html",
         env!("CARGO_MANIFEST_DIR"),
         page
     )) {
@@ -96,7 +110,6 @@ fn get_paste() -> Template {
     data = "<items>"
 )]
 fn add_new_page(items: Option<Form<NewPage>>) -> Result<Redirect, &'static str> {
-    println!("ITEMS: {:#?}", items);
     match items {
         Some(form) => {
             create_dir_all(format!(
@@ -113,7 +126,7 @@ fn add_new_page(items: Option<Form<NewPage>>) -> Result<Redirect, &'static str> 
 
             write(
                 format!(
-                    "{}/content/pages/{}.html",
+                    "{}/content/pages/{}/index.html",
                     env!("CARGO_MANIFEST_DIR"),
                     form.new_url
                 ),
@@ -121,24 +134,36 @@ fn add_new_page(items: Option<Form<NewPage>>) -> Result<Redirect, &'static str> 
             )
             .unwrap();
 
-            Ok(Redirect::to(format!(
-                "/page/{}",
-                form.new_url.replace(" ", "-")
-            )))
+            match update_index(&form.new_url) {
+                Ok(()) => {
+                    Ok(Redirect::to(format!(
+                        "/page/{}",
+                        form.new_url.replace(" ", "-")
+                    )))        
+                },
+                Err(err) => {
+                    Err("Something went wrong.")
+                }
+            }
         }
         None => Err("Invalid input"),
     }
 }
 
 fn main() {
-    if std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/content")).is_dir() == false {
-        std::fs::create_dir_all(concat!(env!("CARGO_MANIFEST_DIR"), "/content/pages"))
+    if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/content")).is_dir() == false {
+        create_dir_all(concat!(env!("CARGO_MANIFEST_DIR"), "/content/pages"))
             .expect("Failed to generate setup directory structure, aborting...");
+
+        if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/content/pages/index.json")).is_file() == false {
+            write(Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/content/pages/index.json")), "{\"files\":[]}").expect("Failed to initialise setup directory structure, aborting...");
+        }
     }
+
     rocket::ignite()
         .mount(
             "/",
-            routes![add_new_page, get_index, get_pages, get_page_item, get_paste],
+            routes![add_new_page, get_index, get_pages, get_page_item, get_paste, get_page_index_route],
         )
         .mount(
             "/",
